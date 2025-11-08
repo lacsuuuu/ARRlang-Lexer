@@ -1,0 +1,209 @@
+* {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Courier New', monospace;
+      background: #3d2817;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    
+    .header {
+      background: #3d2817;
+      padding: 15px 20px;
+      display: flex;
+      align-items: center;
+      border-bottom: 3px solid #2a1a0f;
+    }
+    
+    .logo {
+      width: 60px;
+      height: 60px;
+      background: #ece8e4;
+      border-radius: 50%;
+      margin-right: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    
+     h1 {
+      color: #faf6f0;
+      font-size: 20px;
+      font-weight: bold;
+      flex: 1;
+    }
+    
+    .main-container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+    
+    .left-panel {
+      flex: 1;
+      background: #b8936a;
+      padding: 20px;
+      border-right: 4px solid #8b6f47;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .right-panel {
+      flex: 1;
+      background: #f5e6d3;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .button-row {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+      padding: 15px 20px;
+      background: #f5e6d3;
+    }
+    
+    button {
+      padding: 10px 25px;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      font-weight: bold;
+      border: 2px solid #8b6f47;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: #e8d4b8;
+      color: #3d2817;
+    }
+    
+    button:hover {
+      background: #d4c4a8;
+      transform: translateY(-1px);
+    }
+    
+    #source {
+      width: 100%;
+      flex: 1;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      padding: 15px;
+      border: 3px solid #8b6f47;
+      border-radius: 6px;
+      background: #9d7f5e;
+      color: #f5e6d3;
+      resize: none;
+    }
+
+    
+    
+    #source::selection {
+      background: #5a3d2a;
+      color: #f5e6d3;
+    }
+    
+    .table-container {
+      flex: 1;
+      overflow: auto;
+      background: #f5e6d3;
+      padding: 10px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #8b6f47;
+      border: 2px solid #8b6f47;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    th {
+      background: #5a3d2a;
+      color: #f5e6d3;
+      padding: 12px;
+      text-align: left;
+      font-weight: bold;
+      border: 1px solid #3d2817;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
+    tbody {
+      min-height: 480px;
+      display: block;
+      background: #faf6f0;
+    }
+    
+    thead, tbody tr {
+      display: table;
+      width: 100%;
+      table-layout: fixed;
+    }
+    
+    td {
+      padding: 10px 12px;
+      border: 1px solid #d4c4a8;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      background: #faf6f0;
+      color: #3d2817;
+    }
+    
+    tr:nth-child(even) td {
+      background: #f5ede0;
+    }
+    
+    tr:hover td {
+      background: #e8dcc8;
+    }
+    
+    .footer {
+      background: #8b6f47;
+      padding: 20px;
+      border-top: 3px solid #5a3d2a;
+    }
+    
+    .error-container {
+      background: #f5e6d3;
+      border: 3px solid #8b6f47;
+      border-radius: 6px;
+      padding: 15px;
+      min-height: 150px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    
+    .error-header {
+      font-family: "pirata one";
+      color: #5a3d2a;
+      font-weight: bold;
+      font-size: 16px;
+      margin-bottom: 10px;
+    }
+    
+    .error-content {
+      color: #3d2817;
+      font-family: "pirata one";
+      font-size: 13px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+    
+    .error-content:empty::before {
+      content: "⚓ No errors detected - smooth sailing!";
+      color: #2d5f2d;
+      font-weight: bold;
+    }
+    
+    .error-content:not(:empty) {
+      color: #8b3a3a;
+      font-weight: bold;
+    }
