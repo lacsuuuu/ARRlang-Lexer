@@ -65,12 +65,12 @@ parrot("The sum is:", sum)</textarea>
 
   // token area
   const tokenSpecs = [
-    { type: "WHITESPACE", regex: /^[ \t\r]+/ },
+    { type: "WHITESPACE", regex: /^[ \s\t\r]+/ },
     { type: "COMMENT_MULTI", regex: /^<<<(?:(?!<<<|>>>).)*>>>/s },
     { type: "COMMENT_SINGLE", regex: /^<<<[^\n]*/ },
     { type: "NEWLINE", regex: /^\n+/ },
-    { type: "DOUBLE", regex: /^(?:\d+\.\d+(?:[eE][+-]?\d+)?|\d+[eE][+-]?\d+)/ },
-    { type: "INTEGER", regex: /^(?:0[xX][0-9A-Fa-f]+|0[bB][01]+|\d+)/ },
+    { type: "DOUBLE", regex: /^-?\d+\.\d+(?:[eE][+-]?\d+)?/ },
+    { type: "INTEGER", regex: /^-?(?:\d+)/ },
     { type: "STRING", regex: /^(?:'''[\s\S]*?'''|"""[\s\S]*?"""|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/ },
     { type: "OPERATOR", regex: /^(\+=|-=|\*=|\/=|==|!=|<=|>=|\/\/|<<|>>|&|\||\^|~|<|>|\+|-|\*|\/|%|=|:)/ },
     { type: "PUNCTUATION", regex: /^[\(\)\[\]\{\},\.]/ },
@@ -78,11 +78,37 @@ parrot("The sum is:", sum)</textarea>
   ];
 
   const keywords = new Set([
-    "ask", "parrot", "truthy", "aye", "nay", "adrift", "pirate", "doubloon", "gold", "scroll", 
+    "anchor", "ask", "parrot", "truthy", "aye", "nay", "adrift", "pirate", "doubloon", "gold", "scroll", 
     "ifwind", "elseye", "otherwise", "fer", "storm", "cut", "onward", "sailby", "ashore", "cease", 
     "venture", "reel", "lastport", "alarm", "ayecheck", "sevenseas", "horizon", "be", "aboard", "withcrew", 
     "eitherway", "naycrew", "naybe", "nayaboard", "rank", "map", "sink", "alias", "hauled", "shipin", "accord", "voyage", "holdfast"
   ]);
+
+  const invalidSequences = {
+    // assignment
+    '+=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
+    '-=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
+    '*=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
+    '/=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
+    '=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
+    
+    // comparison
+    '==': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
+    '!=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
+    '<=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
+    '>=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
+    '<': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
+    '>': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
+    
+    // arithmetic
+    '+': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':'],
+    '*': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':'],
+    '/': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':'],
+    '%': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':'],
+    
+    // colon
+    ':': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '+', '*', '/', '%', '<', '>'],
+  };
 
   function tokenize(input) {
     const tokens = [];
@@ -111,7 +137,7 @@ parrot("The sum is:", sum)</textarea>
       }
 
       // wrong number format
-      const malformedNumber = /^\d+(\.\d+){2,}/.exec(slice);
+      const malformedNumber = /^(?:\d+\.(?!\d)|\.\d+|(?:\d*\.){2,}\d*)/.exec(slice);
       if (malformedNumber) {
         errors.push({ 
           code: "E002",
@@ -137,6 +163,7 @@ parrot("The sum is:", sum)</textarea>
         col += illegalIdentifier[0].length;
         continue;
       }
+
 
       for (const spec of tokenSpecs) {
         const m = spec.regex.exec(slice);
@@ -170,13 +197,37 @@ parrot("The sum is:", sum)</textarea>
           } else if (type === "COMMENT_SINGLE" || type === "COMMENT_MULTI") {
             tokenType = "COMMENT";
           } else if (type === "OPERATOR") {
-            tokenType = "OPERATOR";
+              tokenType = "OPERATOR";
+              
+              let lastOpToken = null;
+              for (let i = tokens.length - 1; i >= 0; i--) {
+                const prevToken = tokens[i];
+                if (prevToken.type === "OPERATOR") {
+                  lastOpToken = prevToken;
+                  break;
+                } else if (prevToken.type !== "NEWLINE" && prevToken.type !== "COMMENT_SINGLE" && prevToken.type !== "COMMENT_MULTI") {
+                  break;
+                }
+              }
+              
+              if (lastOpToken) {
+                const prevOp = lastOpToken.value;
+                const currOp = lexeme;
+                
+                if (invalidSequences[prevOp] && invalidSequences[prevOp].includes(currOp)) {
+                  errors.push({
+                    code: "E004",
+                    message: `Invalid operator sequence: '${prevOp}' cannot be followed by '${currOp}'`,
+                    line,
+                    col
+                  });
+                }
+              }
           } else if (type === "PUNCTUATION") {
             tokenType = "SEPARATOR";
           }
-          
           tokens.push({ type, value: lexeme, tokenType, line, col });
-        }
+      }
 
         pos += lexeme.length;
         if (newlines > 0) {
@@ -202,7 +253,6 @@ parrot("The sum is:", sum)</textarea>
         col += 1;
       }
     }
-
     return { tokens, errors };
   }
 
