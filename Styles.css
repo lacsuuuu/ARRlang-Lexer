@@ -33,7 +33,7 @@
       font-size: 24px;
     }
     
-     h1 {
+    h1 {
       color: #faf6f0;
       font-size: 20px;
       font-weight: bold;
@@ -53,6 +53,43 @@
       border-right: 4px solid #8b6f47;
       display: flex;
       flex-direction: column;
+    }
+    
+    .editor-container {
+      display: flex;
+      flex: 1;
+      border: 3px solid #8b6f47;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #9d7f5e;
+    }
+    
+    .line-numbers {
+      background: #7d6349;
+      color: #d4c4a8;
+      padding: 15px 10px;
+      text-align: right;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+      user-select: none;
+      overflow: hidden;
+      min-width: 50px;
+      border-right: 2px solid #8b6f47;
+    }
+    
+    .line-numbers div {
+      line-height: 21px;
+      height: 21px;
+    }
+    
+    .line-numbers .error-line {
+      background: #8b3a3a;
+      color: #ffcccc;
+      font-weight: bold;
+      padding: 0 5px;
+      margin: 0 -10px;
+      padding-left: 5px;
+      padding-right: 10px;
     }
     
     .right-panel {
@@ -89,19 +126,17 @@
     }
     
     #source {
-      width: 100%;
       flex: 1;
       font-family: 'Courier New', monospace;
       font-size: 14px;
       padding: 15px;
-      border: 3px solid #8b6f47;
-      border-radius: 6px;
+      border: none;
       background: #9d7f5e;
       color: #f5e6d3;
       resize: none;
+      outline: none;
+      line-height: 21px;
     }
-
-    
     
     #source::selection {
       background: #5a3d2a;
@@ -182,7 +217,6 @@
     }
     
     .error-header {
-      font-family: "pirata one";
       color: #5a3d2a;
       font-weight: bold;
       font-size: 16px;
@@ -191,7 +225,6 @@
     
     .error-content {
       color: #3d2817;
-      font-family: "pirata one";
       font-size: 13px;
       line-height: 1.6;
       white-space: pre-wrap;

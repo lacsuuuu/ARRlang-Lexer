@@ -5,17 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ARRlang Lexical Analyzer</title>
   <link rel="stylesheet" href="Styles.css">
+  
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
   <div class="header">
     <div class="logo"><img style="width: 60px; height: 60px;" src="ARRlang logo.png" alt="logo"></div>
-    <h1 style="color:#faf6f0; font-family: pirata one; font-weight: 700;">ARRlang Lexical Analyzer</h1>
+    <h1>ARRlang Lexical Analyzer</h1>
   </div>
 
   <div class="main-container">
     <div class="left-panel">
-      <textarea id="source" spellcheck="false"><<< Example ARRlang code
+      <div class="editor-container">
+        <div class="line-numbers" id="lineNumbers"></div>
+        <textarea id="source" spellcheck="false"><<< Example ARRlang code
 map add(x, y):
      result = x + y
      ashore result
@@ -30,21 +33,22 @@ a = 5 <<<this is an in-line comment
 b = 10
 sum = add(a, b)
 parrot("The sum is:", sum)</textarea>
+      </div>
     </div>
     
     <div class="right-panel">
       <div class="button-row">
-        <button style="font-family: pirata one;" id="tokenizeBtn" >TOKENIZE</button>
-        <button style="font-family: pirata one;" id="clearBtn">CLEAR</button>
+        <button id="tokenizeBtn">TOKENIZE</button>
+        <button id="clearBtn">CLEAR</button>
       </div>
       
       <div class="table-container">
         <table id="tokensTable">
           <thead>
             <tr>
-              <th style="font-family: pirata one;">Lexeme</th>
-              <th style="font-family: pirata one;">Token</th>
-              <th style="font-family: pirata one;">Token Type</th>
+              <th>Lexeme</th>
+              <th>Token</th>
+              <th>Token Type</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -60,241 +64,6 @@ parrot("The sum is:", sum)</textarea>
     </div>
   </div>
 
-<script>
-(function(){
-
-  // token area
-  const tokenSpecs = [
-    { type: "WHITESPACE", regex: /^[ \s\t\r]+/ },
-    { type: "COMMENT_MULTI", regex: /^<<<(?:(?!<<<|>>>).)*>>>/s },
-    { type: "COMMENT_SINGLE", regex: /^<<<[^\n]*/ },
-    { type: "NEWLINE", regex: /^\n+/ },
-    { type: "DOUBLE", regex: /^-?\d+\.\d+(?:[eE][+-]?\d+)?/ },
-    { type: "INTEGER", regex: /^-?(?:\d+)/ },
-    { type: "STRING", regex: /^(?:'''[\s\S]*?'''|"""[\s\S]*?"""|'(?:\\.|[^'\\])*'|"(?:\\.|[^"\\])*")/ },
-    { type: "OPERATOR", regex: /^(\+=|-=|\*=|\/=|==|!=|<=|>=|\/\/|<<|>>|&|\||\^|~|<|>|\+|-|\*|\/|%|=|:)/ },
-    { type: "PUNCTUATION", regex: /^[\(\)\[\]\{\},\.]/ },
-    { type: "IDENTIFIER", regex: /^[A-Za-z_]\w*/ },
-  ];
-
-  const keywords = new Set([
-    "anchor", "ask", "parrot", "truthy", "aye", "nay", "adrift", "pirate", "doubloon", "gold", "scroll", 
-    "ifwind", "elseye", "otherwise", "fer", "storm", "cut", "onward", "sailby", "ashore", "cease", 
-    "venture", "reel", "lastport", "alarm", "ayecheck", "sevenseas", "horizon", "be", "aboard", "withcrew", 
-    "eitherway", "naycrew", "naybe", "nayaboard", "rank", "map", "sink", "alias", "hauled", "shipin", "accord", "voyage", "holdfast"
-  ]);
-
-  const invalidSequences = {
-    // assignment
-    '+=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
-    '-=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
-    '*=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
-    '/=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
-    '=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '%', '/', '*'],
-    
-    // comparison
-    '==': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
-    '!=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
-    '<=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
-    '>=': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
-    '<': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
-    '>': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '<', '>'],
-    
-    // arithmetic
-    '+': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':'],
-    '*': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':'],
-    '/': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':'],
-    '%': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':'],
-    
-    // colon
-    ':': ['+=', '-=', '*=', '/=', '==', '!=', '<=', '>=', '=', ':', '+', '*', '/', '%', '<', '>'],
-  };
-
-  function tokenize(input) {
-    const tokens = [];
-    const errors = [];
-    let line = 1, col = 1;
-    let pos = 0;
-
-    while (pos < input.length) {
-      const slice = input.slice(pos);
-      let matched = false;
-
-      // unterminated string
-      const unterminatedString = /^(['"])(?:\\.|(?!\1)[^\n\\])*$/.exec(slice);
-      if (unterminatedString) {
-        const quote = unterminatedString[1];
-        const restOfLine = slice.match(/^[^\n]*/)[0];
-        errors.push({ 
-          code: "E001",
-          message: `Unterminated string literal (missing closing ${quote})`, 
-          line, 
-          col 
-        });
-        pos += restOfLine.length;
-        col += restOfLine.length;
-        continue;
-      }
-
-      // wrong number format
-      const malformedNumber = /^(?:\d+\.(?!\d)|\.\d+|(?:\d*\.){2,}\d*)/.exec(slice);
-      if (malformedNumber) {
-        errors.push({ 
-          code: "E002",
-          message: `Malformed number literal '${malformedNumber[0]}'`, 
-          line, 
-          col 
-        });
-        pos += malformedNumber[0].length;
-        col += malformedNumber[0].length;
-        continue;
-      }
-
-      // illegal identifier
-      const illegalIdentifier = /^\d+[A-Za-z_]\w*/.exec(slice);
-      if (illegalIdentifier) {
-        errors.push({ 
-          code: "E003",
-          message: `Illegal identifier '${illegalIdentifier[0]}' (cannot start with digit)`, 
-          line, 
-          col 
-        });
-        pos += illegalIdentifier[0].length;
-        col += illegalIdentifier[0].length;
-        continue;
-      }
-
-
-      for (const spec of tokenSpecs) {
-        const m = spec.regex.exec(slice);
-        if (!m) continue;
-        matched = true;
-        const lexeme = m[0];
-
-        
-        const newlineMatches = lexeme.match(/\n/g);
-        const newlines = newlineMatches ? newlineMatches.length : 0;
-
-        if (spec.type === "WHITESPACE") {
-          
-        } else if (spec.type === "NEWLINE") {
-          tokens.push({ type: "NEWLINE", value: "\\n", tokenType: "SEPARATOR", line, col });
-        } else {
-          let type = spec.type;
-          let tokenType = spec.type;
-          
-          if (type === "IDENTIFIER" && keywords.has(lexeme)) {
-            type = "KEYWORD";
-            tokenType = "KEYWORD";
-          } else if (type === "IDENTIFIER") {
-            tokenType = "IDENTIFIER";
-          } else if (type === "INTEGER") {
-            tokenType = "INT_LIT";
-          } else if (type === "DOUBLE") {
-            tokenType = "DBL_LIT";
-          } else if (type === "STRING") {
-            tokenType = "STRING_LIT";
-          } else if (type === "COMMENT_SINGLE" || type === "COMMENT_MULTI") {
-            tokenType = "COMMENT";
-          } else if (type === "OPERATOR") {
-              tokenType = "OPERATOR";
-              
-              let lastOpToken = null;
-              for (let i = tokens.length - 1; i >= 0; i--) {
-                const prevToken = tokens[i];
-                if (prevToken.type === "OPERATOR") {
-                  lastOpToken = prevToken;
-                  break;
-                } else if (prevToken.type !== "NEWLINE" && prevToken.type !== "COMMENT_SINGLE" && prevToken.type !== "COMMENT_MULTI") {
-                  break;
-                }
-              }
-              
-              if (lastOpToken) {
-                const prevOp = lastOpToken.value;
-                const currOp = lexeme;
-                
-                if (invalidSequences[prevOp] && invalidSequences[prevOp].includes(currOp)) {
-                  errors.push({
-                    code: "E004",
-                    message: `Invalid operator sequence: '${prevOp}' cannot be followed by '${currOp}'`,
-                    line,
-                    col
-                  });
-                }
-              }
-          } else if (type === "PUNCTUATION") {
-            tokenType = "SEPARATOR";
-          }
-          tokens.push({ type, value: lexeme, tokenType, line, col });
-      }
-
-        pos += lexeme.length;
-        if (newlines > 0) {
-          line += newlines;
-          const lastNewline = lexeme.lastIndexOf("\n");
-          col = lexeme.length - lastNewline;
-        } else {
-          col += lexeme.length;
-        }
-        break;
-      }
-
-      if (!matched) {
-        const badChar = input[pos];
-        // unrecognized token
-        errors.push({ 
-          code: "E000",
-          message: `Unrecognized token '${badChar}'`, 
-          line, 
-          col 
-        });
-        pos += 1;
-        col += 1;
-      }
-    }
-    return { tokens, errors };
-  }
-
-  const srcEl = document.getElementById("source");
-  const btn = document.getElementById("tokenizeBtn");
-  const clearBtn = document.getElementById("clearBtn");
-  const tbody = document.querySelector("#tokensTable tbody");
-  const errorsDiv = document.getElementById("errors");
-
-  btn.addEventListener("click", () => {
-    tbody.innerHTML = "";
-    errorsDiv.textContent = "";
-    const input = srcEl.value;
-    const { tokens, errors } = tokenize(input);
-
-    tokens.forEach((t, i) => {
-      const tr = document.createElement("tr");
-      const token = t.type === "KEYWORD" ? escapeHtml(t.value) : t.type;
-      tr.innerHTML = `
-        <td>${escapeHtml(t.value)}</td>
-        <td>${token}</td>
-        <td>${t.tokenType}</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    if (errors.length) {
-      errorsDiv.textContent = errors.map(e => `[${e.code}] ${e.message} (line ${e.line}, col ${e.col})`).join('\n');
-    }
-  });
-
-  clearBtn.addEventListener("click", () => {
-    srcEl.value = "";
-    tbody.innerHTML = "";
-    errorsDiv.textContent = "";
-  });
-
-  function escapeHtml(str) {
-    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
-})();
-</script>
+<script src="script.js" **defer**></script>
 </body>
 </html>
